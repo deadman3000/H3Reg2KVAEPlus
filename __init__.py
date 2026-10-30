@@ -275,6 +275,71 @@ class OpenH3RegenLora:
                "invert": "model time read back from the model's own curve, branches use the reference curve",
                "recorded": "full (non-pruned) model, model time recorded from the time embedder"}[mode]
         return f"Sharp curve branches: {len(blocks)} at {strength:g}, {tag}; {how}"
+class OpenH3RegenSharpCurves:
+    """Apply LMS Sharp curve branches without loading the merged LoRA."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        loras = folder_paths.get_filename_list("loras")
+        checkpoints = folder_paths.get_filename_list("diffusion_models")
+
+        return {
+            "required": {
+                "model": ("MODEL",),
+
+                "curve_name": (loras, {
+                    "default": _pick(loras, "sharp_curve_branches"),
+                }),
+
+                "curve_table": ([OWN_TABLE] + checkpoints, {
+                    "default": _pick(
+                        checkpoints,
+                        "ref2va_pruned_int8_convrot",
+                        "ref2va_pruned"
+                    ) or OWN_TABLE,
+                }),
+
+                "curve_strength": ("FLOAT", {
+                    "default": 1.0,
+                    "min": -2.0,
+                    "max": 2.0,
+                    "step": 0.01,
+                }),
+            }
+        }
+
+    RETURN_TYPES = ("MODEL", "STRING")
+    RETURN_NAMES = ("model", "report")
+    FUNCTION = "apply"
+    CATEGORY = CATEGORY
+
+    DESCRIPTION = (
+        "Applies LMS Sharp curve branches only. "
+        "Ordinary LoRAs must already be applied upstream."
+    )
+
+    def apply(self, model, curve_name, curve_table, curve_strength):
+
+        if curve_strength == 0:
+            return (model, "Sharp curve branches disabled")
+
+        if "sharp_curve_branches" not in curve_name.lower():
+            raise ValueError(
+                "Select sharp_curve_branches.safetensors"
+            )
+
+        patched_model = model.clone()
+
+        report = OpenH3RegenLora._apply_curves(
+            patched_model,
+            curve_name,
+            curve_table,
+            curve_strength
+        )
+
+        LOG.info(report)
+
+        return (patched_model, report)
 
 
 # ------------------------------------------------------------------ sigmas
@@ -626,7 +691,7 @@ class OpenH3RegenFastVAEDecodeStaged:
             "vae_name": (vaes, {"default": _pick(vaes, "fast_h3_vae_noncausal"),
                                 "tooltip": "Dedicated StreamRender-H3 fast decoder Safetensors in models/vae."}),
             "keep_loaded": ("BOOLEAN", {"default": False, "tooltip": "Keep the experimental decoder on the GPU after decoding."}),
-            "spatial_batch": ("INT", {"default": 4, "min": 2, "max": 8, "step": 2, "tooltip": "Number of 16x16 spatial windows processed together. Use 2 for the proven lower-memory baseline; test 4 for higher throughput."}),
+            "spatial_batch": ("INT", {"default": 8, "min": 2, "max": 8, "step": 2, "tooltip": "Number of 16x16 spatial windows processed together. Use 2 for the proven lower-memory baseline; test 4 for higher throughput."}),
         }, "optional": {
             "vae": ("VAE", {"tooltip": "Conventional H3 VAE fallback if the experimental decoder runs out of VRAM."}),
         }}
@@ -892,6 +957,7 @@ class OpenH3VideoToPrompt:
 
 
 NODE_CLASS_MAPPINGS = {
+    "OpenH3RegenSharpCurves": OpenH3RegenSharpCurves,
     "OpenH3SaveRefinedLatent": OpenH3SaveRefinedLatent,
     "OpenH3LoadRefinedLatent": OpenH3LoadRefinedLatent,
     "OpenH3VideoToPrompt": OpenH3VideoToPrompt,
@@ -906,6 +972,7 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "OpenH3RegenSharpCurves": "Open-H3 Regenerate - Sharp Curve Branches Only",
     "OpenH3SaveRefinedLatent": "Open-H3 Regenerate · Save Refined Latent",
     "OpenH3LoadRefinedLatent": "Open-H3 Regenerate · Load Refined Latent",
     "OpenH3VideoToPrompt": "Open-H3 · Video to H3 Prompt (inference server)",
