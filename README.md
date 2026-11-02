@@ -1,3 +1,5 @@
+Skip to bottom for installation instructions.
+
 # Open-H3 Regenerate — Extended LoRA and Curve Support
 
 <badge>Experimental Alpha 0.1</badge>
@@ -160,3 +162,5 @@ In particular, feedback on the alternative LoRA application route, LMS Sharp cur
 *Experimental Alpha 0.1*
 
 *Singularity and Hybrid successfully tested.*
+
+To install and use you need the H3 Regenerate 2K custom node pack. Install using ComfyUI Manager as normal. Backup the /custom_nodes/ComfyUI-Open-H3-Regenerate folder and replace __init__.py and fast_bae_staged.py with the files in this repository. Restart ComfyUI and refresh your workflow page (ctrl-f5). Then add the following nodes to your H3 Regenerate 2K workflow, replacing the the curve branches lora loader node with 'Open-H3 Regenerate 2K - Sharp Curves Only Branch' and Open-H3 Fast VAE Decode node with 'Open-H3 Regenerate 2k - Fast VAE Decode (RAM-Staged, Experimental)' nodes. Connect your model to the new branch curves only node and your latent from the H3 3D upscaler node to the new fast VAE decode node.
